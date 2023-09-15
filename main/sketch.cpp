@@ -23,6 +23,7 @@ limitations under the License.
 
 #include <Arduino.h>
 #include <Bluepad32.h>
+#include "ble.h"
 
 //
 // README FIRST, README FIRST, README FIRST
@@ -94,6 +95,10 @@ void setup() {
     // Forgetting Bluetooth keys prevents "paired" gamepads to reconnect.
     // But might also fix some connection / re-connection issues.
     BP32.forgetBluetoothKeys();
+
+    BP32.enableNewBluetoothConnections(false);
+
+    BLE_SETUP();
 }
 
 // Arduino loop function. Runs in CPU 1
