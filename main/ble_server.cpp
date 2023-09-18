@@ -1,6 +1,6 @@
-#include "ble.h"
+#include "ble_server.h"
 
-const char* test_string = "Delayed response";
+const char *test_string = "Delayed response";
 const uint8_t adv_data[] = {
     // Flags general discoverable, BR/EDR not supported
     0x02,
@@ -25,16 +25,17 @@ esp_ota_handle_t otaHandler = 0;
 static uint16_t att_read_callback(hci_con_handle_t con_handle,
                                   uint16_t att_handle,
                                   uint16_t offset,
-                                  uint8_t* buffer,
+                                  uint8_t *buffer,
                                   uint16_t buffer_size);
 static int att_write_callback(hci_con_handle_t connection_handle,
                               uint16_t att_handle,
                               uint16_t transaction_mode,
                               uint16_t offset,
-                              uint8_t* buffer,
+                              uint8_t *buffer,
                               uint16_t buffer_size);
 
-void BLE_SETUP() {
+void BLE_SERVER_SETUP()
+{
     // setup ATT server
     att_server_init(profile_data, att_read_callback, att_write_callback);
 
@@ -45,7 +46,7 @@ void BLE_SETUP() {
     bd_addr_t null_addr;
     memset(null_addr, 0, 6);
     gap_advertisements_set_params(adv_int_min, adv_int_max, adv_type, 0, null_addr, 0x07, 0x00);
-    gap_advertisements_set_data(adv_data_len, (uint8_t*)adv_data);
+    gap_advertisements_set_data(adv_data_len, (uint8_t *)adv_data);
     gap_advertisements_enable(1);
 }
 
@@ -53,7 +54,7 @@ void BLE_SETUP() {
  * The ATT Server handles all reads to constant data. For dynamic data like the custom characteristic, the
  * registered att_read_callback is called. To handle long characteristics and long reads, the att_read_callback is first
  * called with buffer == NULL, to request the total value length. Then it will be called again requesting a chunk of the
- * value. See Listing attRead.
+ * value.
  */
 
 // ATT Client Read Callback for Dynamic Data
@@ -63,12 +64,15 @@ void BLE_SETUP() {
 static uint16_t att_read_callback(hci_con_handle_t connection_handle,
                                   uint16_t att_handle,
                                   uint16_t offset,
-                                  uint8_t* buffer,
-                                  uint16_t buffer_size) {
+                                  uint8_t *buffer,
+                                  uint16_t buffer_size)
+{
     UNUSED(connection_handle);
-    if (att_handle == ATT_CHARACTERISTIC_0000FF11_0000_1000_8000_00805F9B34FB_01_VALUE_HANDLE) {
+
+    if (att_handle == ATT_CHARACTERISTIC_0000FF11_0000_1000_8000_00805F9B34FB_01_VALUE_HANDLE)
+    {
         printf("Responding right away");
-        return att_read_callback_handle_blob((const uint8_t*)test_string, (uint16_t)strlen(test_string), offset, buffer,
+        return att_read_callback_handle_blob((const uint8_t *)test_string, (uint16_t)strlen(test_string), offset, buffer,
                                              buffer_size);
     }
 
@@ -80,7 +84,7 @@ static uint16_t att_read_callback(hci_con_handle_t connection_handle,
 
     The first write after boot is considered the start of the process.
 
-    All subsiquent writes append binary data, the Web App send data in blocks of 244.
+    All subsiquent writes append binary data, the Web App sends data in blocks of 244.
 
     Any block recieved less than that block size is considered the final block and terminates the OTA process rebooting
    the ESP.
@@ -92,47 +96,60 @@ static int att_write_callback(hci_con_handle_t connection_handle,
                               uint16_t att_handle,
                               uint16_t transaction_mode,
                               uint16_t offset,
-                              uint8_t* buffer,
-                              uint16_t buffer_size) {
+                              uint8_t *buffer,
+                              uint16_t buffer_size)
+{
     UNUSED(transaction_mode);
     UNUSED(offset);
     UNUSED(connection_handle);
 
-    if (att_handle == ATT_CHARACTERISTIC_0000FF11_0000_1000_8000_00805F9B34FB_01_VALUE_HANDLE) {
-        if (!updateFlag) {
+    if (att_handle == ATT_CHARACTERISTIC_0000FF11_0000_1000_8000_00805F9B34FB_01_VALUE_HANDLE)
+    {
+        if (!updateFlag)
+        {
             printf(" Begin OTA");
             esp_err_t resp = esp_ota_begin(esp_ota_get_next_update_partition(NULL), OTA_SIZE_UNKNOWN, &otaHandler);
 
-            if (resp != ESP_OK) {
-                printf(" Beginng OTA EROR");
+            if (resp != ESP_OK)
+            {
+                printf(" Error starting OTA");
             }
 
             updateFlag = true;
         }
 
-        if (buffer_size > 0) {
+        if (buffer_size > 0)
+        {
             printf(" Writing Block");
             esp_err_t respr = esp_ota_write(otaHandler, buffer, buffer_size);
 
-            if (respr != ESP_OK) {
-                printf(" writing OTA EROR");
+            if (respr != ESP_OK)
+            {
+                printf(" Error writing OTA Block");
             }
 
             // Consider the OTA complete if the block is smaller than the blocksize
             // There is an edge case if the final block is exactly 244
-            if (buffer_size != 244) {
+            if (buffer_size != 244)
+            {
                 printf(" Calling OTA End");
 
-                if (ESP_OK != esp_ota_end(otaHandler)) {
-                    printf(" ERROR ENDING OTA");
-                } else {
-                    printf(" End OTA");
+                if (ESP_OK != esp_ota_end(otaHandler))
+                {
+                    printf(" Error ending OTA");
+                }
+                else
+                {
+                    printf(" OTA has finished");
                 }
 
-                if (ESP_OK == esp_ota_set_boot_partition(esp_ota_get_next_update_partition(NULL))) {
+                if (ESP_OK == esp_ota_set_boot_partition(esp_ota_get_next_update_partition(NULL)))
+                {
                     delay(2000);
                     esp_restart();
-                } else {
+                }
+                else
+                {
                     printf(" Setting boot Partition Error");
                 }
             }
